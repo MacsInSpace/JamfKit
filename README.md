@@ -4,8 +4,8 @@ Modern, cross-platform PowerShell 7 modules for the Jamf platform — built for 
 
 | Module | Status | Target |
 |---|---|---|
-| **[JamfProKit](JamfProKit/)** | v0.1.0-alpha | [Jamf Pro](https://www.jamf.com/products/jamf-pro/) — Jamf Pro API (JSON) + Classic API (XML) |
-| **JamfSchoolKit** | planned | [Jamf School](https://www.jamf.com/products/jamf-school/) — Jamf School API |
+| **[JamfProKit](JamfProKit/)** | v0.5.0-alpha | [Jamf Pro](https://www.jamf.com/products/jamf-pro/) — Jamf Pro API (JSON) + Classic API (XML) |
+| **[JamfSchoolKit](JamfSchoolKit/)** | v0.1.0-alpha | [Jamf School](https://www.jamf.com/products/jamf-school/) — Jamf School API (first PowerShell module for it) |
 
 Why two modules in one repo: the Jamf Pro and Jamf School APIs share nothing — different auth
 (OAuth client credentials vs Network ID + API key), different versioning, different conventions —
