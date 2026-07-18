@@ -6,6 +6,22 @@ All notable changes to JamfProKit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0-alpha] - 2026-07-18
+
+### Added
+- Full MUT template parity: `Update-JamfMobileDevice` (Classic inventory writes plus
+  the chained Jamf Pro API PATCH for Display Name / Enforce Name, with device-ID
+  resolution from the Classic response or by serial lookup) and `Update-JamfUser`
+  (rename, dual email fields, LDAP server assignment with `CLEAR!` → -1, sites,
+  Managed Apple ID, numeric-username heuristic with
+  `-NumericIdentifiersAreNames` override).
+- `EA_<id>` CSV column support across all three bulk update cmdlets — MUT templates
+  with extension attribute columns now pipe straight in; explicit
+  `-ExtensionAttribute` values override CSV columns.
+- `Set-JamfPrestageScope`: add/remove/replace serials in computer and mobile device
+  PreStage scopes with automatic `versionLock` refetch-and-retry on optimistic
+  concurrency conflicts.
+
 ## [0.1.0-alpha] - 2026-07-18
 
 ### Added

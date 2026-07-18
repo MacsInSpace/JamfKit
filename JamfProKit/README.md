@@ -32,9 +32,17 @@ Import-Csv ./ComputerTemplate.csv | Update-JamfComputer -WhatIf
 $results = Import-Csv ./ComputerTemplate.csv | Update-JamfComputer -ErrorAction SilentlyContinue
 $results | Where-Object Status -eq 'Failed' | Export-Csv ./retry.csv
 
+# All three MUT templates work — mobile devices chain the enforce-name PATCH automatically,
+# and EA_<id> columns are picked up from the CSV
+Import-Csv ./MobileDeviceTemplate.csv | Update-JamfMobileDevice
+Import-Csv ./UserTemplate.csv | Update-JamfUser
+
 # Static group membership: add, remove or replace — serials or IDs, auto-detected
 Set-JamfStaticGroupMember -GroupId 15 -Add C02AAA111, C02BBB222
 Set-JamfStaticGroupMember -GroupId 8 -Type User -Replace (Import-Csv users.csv).Username
+
+# PreStage scope with automatic versionLock conflict retry
+Set-JamfPrestageScope -PrestageId 3 -Add C02AAA111, C02BBB222
 ```
 
 ### Anything the module doesn't type yet
@@ -54,14 +62,12 @@ Invoke-JamfApi -Method PUT -Path 'JSSResource/departments/id/3' -Body '<departme
 | Inventory | `Get-JamfComputer`, `Get-JamfMobileDevice`, `Get-JamfProVersion` |
 | Scripts | `Get-JamfScript`, `New-JamfScript`, `Set-JamfScript`, `Remove-JamfScript` |
 | Policies | `Get-JamfPolicy` |
-| Bulk (MUT) | `Update-JamfComputer`, `Set-JamfStaticGroupMember` |
+| Bulk (MUT) | `Update-JamfComputer`, `Update-JamfMobileDevice`, `Update-JamfUser`, `Set-JamfStaticGroupMember`, `Set-JamfPrestageScope` |
 
 All destructive verbs support `-WhatIf`/`-Confirm`. All cmdlets accept `-Session` for multi-server work; without it they use the default session from the last `Connect-JamfPro`.
 
 ## Roadmap
 
-- Mobile device and user bulk updates (MUT template parity for the remaining two templates), `EA_<id>` CSV column support
-- PreStage scope add/remove/replace with `versionLock` optimistic concurrency
 - Typed CRUD for groups, categories, buildings, departments, extension attributes, packages (incl. JCDS2 upload), prestages, MDM commands, LAPS
 - Spec-driven generic cmdlets fed by your instance's live OpenAPI schema (`/api/schema`) with tab completion
 - Jamf Platform API gateway auth (`auth_provider: platform`)

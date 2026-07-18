@@ -1,58 +1,62 @@
-﻿function Update-JamfComputer {
+﻿function Update-JamfMobileDevice {
     <#
     .SYNOPSIS
-        Updates computer inventory attributes — drop-in replacement for The MUT's
-        computer template, as a pipeline cmdlet.
+        Updates mobile device inventory attributes — drop-in replacement for The MUT's
+        mobile device template, as a pipeline cmdlet.
     .DESCRIPTION
-        Updates general, location and purchasing attributes plus extension attributes
-        on a computer record via the Classic API (the only API that can write these).
+        Inventory, location and purchasing fields are written via the Classic API.
+        Display Name and Enforce Name are written via the Jamf Pro API
+        (PATCH /api/v2/mobile-devices/{id}), exactly as The MUT does — the Classic
+        mobile device record cannot enforce names. When both kinds of change are in
+        one row, the Classic update runs first and the device ID is taken from its
+        response; a name-only change resolves the ID by serial number.
 
-        MUT compatibility: every parameter carries an alias matching the MUT CSV
-        template header, so a MUT computer template pipes straight in:
+        MUT compatibility: parameter aliases match the MUT mobile device CSV template
+        headers, so the template pipes straight in, including EA_<id> columns:
 
-            Import-Csv ./ComputerTemplate.csv | Update-JamfComputer -WhatIf
+            Import-Csv ./MobileDeviceTemplate.csv | Update-JamfMobileDevice -WhatIf
 
-        MUT semantics are honored: an empty value means "leave unchanged" and the
-        literal value CLEAR! wipes the field (for Site, CLEAR! unassigns via id -1).
-        Failures are per-row non-terminating errors, so one bad row never stops a
-        bulk run; each row emits a result object you can export for retry.
-    .PARAMETER ExtensionAttribute
-        Hashtable of extension attribute IDs to values, e.g. @{ 2 = 'Building A'; 7 = 'CLEAR!' }.
+        MUT semantics: blank = leave unchanged, CLEAR! = wipe (Site unassigns via -1).
+        Failures are per-row non-terminating errors with result objects for retry.
+    .PARAMETER EnforceName
+        'true' enforces the Display Name on the device (Jamf Pro 10.33+); 'false'
+        stops enforcing. Blank leaves the setting unchanged.
     .EXAMPLE
-        Update-JamfComputer -SerialNumber C02ABC123XYZ -AssetTag 'A-1001' -Building 'HQ'
+        Update-JamfMobileDevice -SerialNumber F9FXH12ABC -AssetTag 'IPAD-042' -Room 'Lab 2'
     .EXAMPLE
-        Import-Csv ./ComputerTemplate.csv | Update-JamfComputer
+        Import-Csv ./MobileDeviceTemplate.csv | Update-JamfMobileDevice
     .EXAMPLE
-        $results = Import-Csv ./bulk.csv | Update-JamfComputer -ErrorAction SilentlyContinue -ErrorVariable rowErrors
-        $results | Where-Object Status -ne 'Updated' | Export-Csv ./retry.csv
+        Update-JamfMobileDevice -SerialNumber F9FXH12ABC -DisplayName 'Cart-01-iPad-07' -EnforceName true
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium', DefaultParameterSetName = 'Serial')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', 'AirplayPassword',
+        Justification = 'The tvOS AirPlay password is an inventory data field from the MUT CSV template, not an authentication credential.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingUsernameAndPasswordParams', '',
+        Justification = 'Username is the assigned-user inventory field and AirplayPassword is a tvOS data field; neither is a credential.')]
     param(
         [Parameter(Mandatory, ParameterSetName = 'Serial', ValueFromPipelineByPropertyName)]
-        [Alias('Serial', 'Computer Serial')]
+        [Alias('Serial', 'Mobile Device Serial')]
         [string] $SerialNumber,
 
         [Parameter(Mandatory, ParameterSetName = 'Id', ValueFromPipelineByPropertyName)]
         [int] $Id,
 
-        # --- general ---
+        # --- Jamf Pro API (PATCH) fields ---
         [Parameter(ValueFromPipelineByPropertyName)] [Alias('Display Name')]
         [string] $DisplayName,
 
+        [Parameter(ValueFromPipelineByPropertyName)] [Alias('Enforce Name')]
+        [string] $EnforceName,
+
+        # --- general ---
         [Parameter(ValueFromPipelineByPropertyName)] [Alias('Asset Tag')]
         [string] $AssetTag,
 
-        [Parameter(ValueFromPipelineByPropertyName)] [Alias('Barcode 1')]
-        [string] $Barcode1,
-
-        [Parameter(ValueFromPipelineByPropertyName)] [Alias('Barcode 2')]
-        [string] $Barcode2,
+        [Parameter(ValueFromPipelineByPropertyName)] [Alias('Airplay Password (tvOS Only)', 'Airplay Password')]
+        [string] $AirplayPassword,
 
         [Parameter(ValueFromPipelineByPropertyName)] [Alias('Site (ID or Name)')]
         [string] $Site,
-
-        [Parameter(ValueFromPipelineByPropertyName)]
-        [string] $Managed,
 
         # --- location ---
         [Parameter(ValueFromPipelineByPropertyName)]
@@ -106,8 +110,6 @@
 
         [hashtable] $ExtensionAttribute,
 
-        # Receives the whole pipeline object so MUT EA_<id> CSV columns can be read;
-        # you never pass this manually.
         [Parameter(ValueFromPipeline)]
         [object] $InputObject,
 
@@ -118,12 +120,9 @@
     begin {
         $resolved = Assert-JamfSession -Session $Session
 
-        # parameter name -> Classic API section + element
         $fieldMap = @{
-            DisplayName     = @('general', 'name')
             AssetTag        = @('general', 'asset_tag')
-            Barcode1        = @('general', 'barcode_1')
-            Barcode2        = @('general', 'barcode_2')
+            AirplayPassword = @('general', 'airplay_password')
             Username        = @('location', 'username')
             RealName        = @('location', 'real_name')
             EmailAddress    = @('location', 'email_address')
@@ -162,7 +161,6 @@
             [void]$changes.Add($paramName)
         }
 
-        # Site: integer -> id, CLEAR! -> id -1 (unassign), anything else -> name.
         if ($PSBoundParameters.ContainsKey('Site') -and $Site -ne '') {
             if (-not $sections.Contains('general')) { $sections['general'] = [ordered]@{} }
             $siteId = 0
@@ -176,19 +174,6 @@
                 $sections['general']['site'] = [ordered]@{ name = $Site }
             }
             [void]$changes.Add('Site')
-        }
-
-        # Managed: strict true/false, matching MUT's validation.
-        if ($PSBoundParameters.ContainsKey('Managed') -and $Managed -ne '') {
-            $managedBool = $false
-            if ([bool]::TryParse($Managed, [ref]$managedBool)) {
-                if (-not $sections.Contains('general')) { $sections['general'] = [ordered]@{} }
-                $sections['general']['remote_management'] = [ordered]@{ managed = $managedBool }
-                [void]$changes.Add('Managed')
-            }
-            else {
-                Write-Warning "[$identityLabel] Managed value '$Managed' is not true/false; skipping that field."
-            }
         }
 
         $eaMerged = Merge-JamfExtensionAttributeInput -InputObject $InputObject -ExtensionAttribute $ExtensionAttribute
@@ -205,35 +190,75 @@
             }
         }
 
-        if ($sections.Count -eq 0) {
+        # Name/enforce-name go through the Jamf Pro API, like The MUT does.
+        $patchBody = @{}
+        if ($PSBoundParameters.ContainsKey('DisplayName') -and $DisplayName -ne '') {
+            $patchBody['name'] = $DisplayName
+            [void]$changes.Add('DisplayName')
+        }
+        if ($PSBoundParameters.ContainsKey('EnforceName') -and $EnforceName -ne '') {
+            $enforceBool = $false
+            if ([bool]::TryParse($EnforceName, [ref]$enforceBool)) {
+                $patchBody['enforceName'] = $enforceBool
+                [void]$changes.Add('EnforceName')
+            }
+            else {
+                Write-Warning "[$identityLabel] EnforceName value '$EnforceName' is not true/false; skipping that field."
+            }
+        }
+
+        if ($sections.Count -eq 0 -and $patchBody.Count -eq 0) {
             Write-Verbose "[$identityLabel] No changes supplied; skipping."
             return
         }
 
-        $xml = ConvertTo-JamfXml -RootElement 'computer' -InputObject $sections
+        if (-not $PSCmdlet.ShouldProcess($identityLabel, "Update mobile device ($($changes -join ', '))")) {
+            return
+        }
 
-        if ($PSCmdlet.ShouldProcess($identityLabel, "Update computer ($($changes -join ', '))")) {
-            try {
-                Invoke-JamfRequest -Session $resolved -Method PUT -Path "JSSResource/computers/$identifier" `
-                    -Body $xml -Accept 'application/xml' | Out-Null
-                [pscustomobject]@{
-                    PSTypeName = 'JamfProKit.BulkResult'
-                    Identifier = $identityLabel
-                    Status     = 'Updated'
-                    Fields     = $changes -join ', '
-                    Error      = $null
+        try {
+            $deviceId = if ($PSCmdlet.ParameterSetName -eq 'Id') { [string]$Id } else { $null }
+
+            if ($sections.Count -gt 0) {
+                $xml = ConvertTo-JamfXml -RootElement 'mobile_device' -InputObject $sections
+                $classicResponse = Invoke-JamfRequest -Session $resolved -Method PUT `
+                    -Path "JSSResource/mobiledevices/$identifier" -Body $xml -Accept 'application/xml'
+                if (-not $deviceId -and $classicResponse -is [xml]) {
+                    try { $deviceId = [string]$classicResponse.mobile_device.id } catch { $deviceId = $null }
                 }
             }
-            catch {
-                [pscustomobject]@{
-                    PSTypeName = 'JamfProKit.BulkResult'
-                    Identifier = $identityLabel
-                    Status     = 'Failed'
-                    Fields     = $changes -join ', '
-                    Error      = $_.Exception.Message
+
+            if ($patchBody.Count -gt 0) {
+                if (-not $deviceId) {
+                    $escaped = $SerialNumber -replace '"', ''
+                    $found = @(Get-JamfPagedResult -Session $resolved -Path 'api/v2/mobile-devices' `
+                        -Filter ('serialNumber=="{0}"' -f $escaped))
+                    if ($found.Count -eq 1) { $deviceId = [string]$found[0].id }
                 }
-                Write-Error -Message "[$identityLabel] $($_.Exception.Message)" -TargetObject $identityLabel
+                if (-not $deviceId) {
+                    throw "Could not resolve a unique device ID for '$identityLabel' to set the display name."
+                }
+                Invoke-JamfRequest -Session $resolved -Method PATCH -Path "api/v2/mobile-devices/$deviceId" `
+                    -Body $patchBody | Out-Null
             }
+
+            [pscustomobject]@{
+                PSTypeName = 'JamfProKit.BulkResult'
+                Identifier = $identityLabel
+                Status     = 'Updated'
+                Fields     = $changes -join ', '
+                Error      = $null
+            }
+        }
+        catch {
+            [pscustomobject]@{
+                PSTypeName = 'JamfProKit.BulkResult'
+                Identifier = $identityLabel
+                Status     = 'Failed'
+                Fields     = $changes -join ', '
+                Error      = $_.Exception.Message
+            }
+            Write-Error -Message "[$identityLabel] $($_.Exception.Message)" -TargetObject $identityLabel
         }
     }
 }
