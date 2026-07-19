@@ -6,7 +6,8 @@ Modern, cross-platform PowerShell 7 modules for Apple MDM platforms — built fo
 |---|---|---|
 | **[JamfProKit](JamfProKit/)** | v0.5.0-alpha | [Jamf Pro](https://www.jamf.com/products/jamf-pro/) — Jamf Pro API (JSON) + Classic API (XML) |
 | **[JamfSchoolKit](JamfSchoolKit/)** | v0.1.0-alpha | [Jamf School](https://www.jamf.com/products/jamf-school/) — Jamf School API (first PowerShell module for it) |
-| **[MosyleKit](MosyleKit/)** | v0.1.0-alpha | [Mosyle Manager](https://mosyle.com/) — Mosyle Manager API (JWT) |
+| **[MosyleKit](MosyleKit/)** | v0.3.0-alpha | [Mosyle Manager](https://mosyle.com/) — Mosyle Manager API (JWT) |
+| **[MosyleFreeKit](MosyleFreeKit/)** | v0.5.0-alpha | [Mosyle Manager **Free**](https://mosyle.com/) — browser session, no paid API token |
 
 One repo, one module per platform. Each MDM has its own API — different auth, versioning and
 conventions — so each gets a module that fits it properly rather than a lowest-common-denominator
@@ -24,6 +25,17 @@ module installs independently from the PowerShell Gallery.
 
 See each module's README for its full tour, cmdlet list and roadmap, and the acknowledgements to
 the community projects that mapped this territory first.
+
+## A note on MosyleFreeKit
+
+The other three modules target documented, vendor-supported APIs. **MosyleFreeKit does not** —
+Mosyle Manager Free has no API token, so that module drives the web UI's own private endpoints
+with your browser session. It is useful, and it is not the same kind of thing: the endpoints are
+unversioned and can change without notice, some operations the UI badges "Premium" are
+nonetheless accepted by the server, and its command bus returns a soft `OK` that is not proof a
+command queued. If the paid API add-on is an option for your school, **[MosyleKit](MosyleKit/)**
+is the supported path. Read [MosyleFreeKit's scope note](MosyleFreeKit/#scope-and-caution) before
+using it.
 
 ## License
 

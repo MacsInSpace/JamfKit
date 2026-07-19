@@ -3,3 +3,13 @@ dist/
 .DS_Store
 testResults.xml
 coverage.xml
+
+# Credentials and tenant data — never commit these.
+secrets/
+cookie.txt
+*.cookie
+smoke-allowlist.txt
+.mosylefreekit/
+
+# Captured tenant pages used for endpoint discovery.
+artifacts/
