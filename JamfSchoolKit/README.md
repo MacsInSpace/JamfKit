@@ -2,6 +2,9 @@
 
 A modern, cross-platform PowerShell 7 module for the [Jamf School](https://www.jamf.com/products/jamf-school/) API — and, as far as we can tell, **the first Jamf School PowerShell module, full stop**.
 
+Part of **[MDMKit](../)** — PowerShell 7 modules for Apple MDM platforms. Siblings:
+[JamfProKit](../JamfProKit/), [MosyleKit](../MosyleKit/), [MosyleFreeKit](../MosyleFreeKit/).
+
 - **Zero-ceremony auth.** Jamf School uses HTTP Basic auth (Network ID + API key, never expires). Connect once; the credential rides every call. SecretManagement-friendly: `-ApiKey (Get-Secret JamfSchool)`.
 - **The protocol-version footgun, fixed.** The API silently falls back to ancient v1 response shapes when `X-Server-Protocol-Version` is missing. This module always sends it (default 3, per-session and per-call overrides).
 - **Typed cmdlets for the admin surface**: devices (with server-side filters and MDM-style commands), users, classes, and device/user groups — envelope unwrapping, string-boolean quirks and the HTTP-200-but-failed responses (`UnlockFailed`) all handled.

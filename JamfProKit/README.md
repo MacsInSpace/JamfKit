@@ -2,6 +2,9 @@
 
 A modern, cross-platform PowerShell 7 module for the [Jamf Pro](https://www.jamf.com/products/jamf-pro/) API — built for 2026, not ported from 2019.
 
+Part of **[MDMKit](../)** — PowerShell 7 modules for Apple MDM platforms. Siblings:
+[JamfSchoolKit](../JamfSchoolKit/), [MosyleKit](../MosyleKit/), [MosyleFreeKit](../MosyleFreeKit/).
+
 - **OAuth client credentials first.** API Roles and Clients is the primary auth path (basic auth against the Classic API was removed in Jamf Pro 11.17); user-account bearer tokens are fully supported too, with automatic keep-alive and renewal either way. Connect once, never think about tokens again.
 - **One hardened request engine.** Both API families — the modern Jamf Pro API (JSON) and the Classic API (XML) — behind a single pipeline with automatic retry on 429/5xx (honoring `Retry-After`), exponential backoff with jitter, one-shot token refresh on 401, correct pagination, and Jamf Cloud sticky-session cookie handling.
 - **MUT-style bulk operations, scriptable.** [The MUT](https://github.com/jamf/mut)'s CSV templates pipe *directly* into `Update-JamfComputer` — the parameter aliases match the template headers, and MUT semantics are honored (blank = unchanged, `CLEAR!` = wipe, site unassign via `-1`). Plus what a GUI can't give you: `-WhatIf` previews, per-row result objects, and failure export for retry runs.
@@ -113,7 +116,6 @@ All destructive verbs support `-WhatIf`/`-Confirm`. All cmdlets accept `-Session
 - Direct-to-S3 JCDS2 multipart upload (for very large packages / resumable transfers)
 - Jamf Platform API gateway auth (`auth_provider: platform`)
 - Throttled parallel bulk mode
-- `JamfSchoolKit` sibling module
 
 ## Development
 

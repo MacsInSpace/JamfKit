@@ -18,6 +18,13 @@ First release inside the [MDMKit](https://github.com/MacsInSpace/MDMKit) repo.
 - Warns when a paste contains neither `PHPSESSID` nor `credentials`
 - Non-interactive shells get a clear throw instead of a hang
 
+### Reference docs
+- New [docs/ENDPOINTS.md](docs/ENDPOINTS.md) — every mapped Free operation with its
+  `mapping`/`operation` pair, body fields, the cmdlet that drives it, and the traps
+  (soft `OK`, the `bullk_` typo, `command_status` vs `status`, `idcart` needing an array)
+- `tools/capture-ui-network.js` folded in from the retired PHP bridge spike: records the
+  Mosyle UI's own fetch/XHR traffic so new operations can be mapped from the Console
+
 ### Repo hygiene
 - No tenant identifiers, device serials, or session cookies are committed
 - `smoke-live.ps1` takes an explicit `-SerialNumber` / gitignored allowlist file — it

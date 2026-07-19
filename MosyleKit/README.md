@@ -2,6 +2,14 @@
 
 A modern, cross-platform PowerShell 7 module for the [Mosyle Manager](https://mosyle.com/) API.
 
+Part of **[MDMKit](../)** — PowerShell 7 modules for Apple MDM platforms. Siblings:
+[JamfProKit](../JamfProKit/), [JamfSchoolKit](../JamfSchoolKit/), [MosyleFreeKit](../MosyleFreeKit/).
+
+> **On a Free plan?** The Manager API is a paid add-on, so this module needs an access token
+> you can only get on a paid plan. Free tenants have **[MosyleFreeKit](../MosyleFreeKit/)**,
+> which drives the web UI with your browser session instead — useful, but unsupported and
+> unversioned. Where the paid API is an option, this module is the stable path.
+
 - **JWT auth, handled.** `Connect-Mosyle` logs in with your access token + an admin email/password, reads the bearer token from the login response header, and renews it automatically before the 24-hour expiry.
 - **The whole API from one cmdlet.** Every Mosyle operation is a `POST /v2/<endpoint>` with `accessToken` in the body — so `Invoke-MosyleApi -Endpoint <name>` reaches all of it today, with token renewal, retry/backoff, and Mosyle's in-body `status: ERROR` responses surfaced as real errors.
 - **Typed cmdlets** for the common reads, with more to come as payloads are confirmed against the API docs.

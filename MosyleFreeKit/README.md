@@ -2,6 +2,9 @@
 
 A modern, cross-platform PowerShell 7 module for **Mosyle Manager Free** schools.
 
+Part of **[MDMKit](../)** — PowerShell 7 modules for Apple MDM platforms. Siblings:
+[JamfProKit](../JamfProKit/), [JamfSchoolKit](../JamfSchoolKit/), [MosyleKit](../MosyleKit/).
+
 Free tenants have **no** `managerapi.mosyle.com` access token. This module uses the same
 web UI session as the browser (`myschool.mosyle.com` → `Controller/mapping.php` and
 `devices_list_ajax.php`).
@@ -34,6 +37,7 @@ suspicion it deserves.
 | Doc | Topic |
 |-----|--------|
 | [docs/AUTH.md](docs/AUTH.md) | **Start here** — connecting, cookie formats, troubleshooting |
+| [docs/ENDPOINTS.md](docs/ENDPOINTS.md) | Endpoint reference: every operation, its body fields, the cmdlet that drives it, and the traps |
 | [docs/LIMITS.md](docs/LIMITS.md) | Soft-OK traps, supervised vs unsupervised, Shared Device Groups, platforms |
 | [docs/AGENT-HANDOFF.md](docs/AGENT-HANDOFF.md) | Discovery notes and open questions |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
@@ -95,6 +99,20 @@ It waits `-VerifySettleMs` (default 500) and retries `-VerifyAttempts` (default 
 - `Remove-MosyleFreeDeviceSharedGroup` — device ← group (`change_to_limbo`)
 - End-user 1:1 assign UI was not available on Free for capture; account move is what we ship
 
+## Reaching something that isn't wired yet
+
+Every operation goes through one bus, so anything mapped in
+[docs/ENDPOINTS.md](docs/ENDPOINTS.md) is reachable even without a typed cmdlet:
+
+```powershell
+Invoke-MosyleFreeUi -Mapping BulkOperationsController -Operation some_operation -Body @{ deviceudid = $udid }
+```
+
+To find the body a UI feature sends, [`tools/capture-ui-network.js`](tools/capture-ui-network.js)
+records the Mosyle UI's own fetch/XHR traffic from the DevTools Console — paste it, click the
+feature once, then `mosyleDumpCapture()`. Captures contain live session traffic and device
+identifiers, so keep them out of version control.
+
 ## Development
 
 ```powershell
@@ -102,9 +120,13 @@ It waits `-VerifySettleMs` (default 500) and retries `-VerifyAttempts` (default 
 ./tools/smoke-live.ps1 -IdSchool yourschool -SerialNumber ABCD1234EFGH
 ```
 
-The test suite is fully mocked — it never touches the network. `smoke-live.ps1` does, and
-has no built-in device list: pass `-SerialNumber`, or list one serial per line in
-`tools/smoke-allowlist.txt` (gitignored). Only ever list devices you administer.
+One function per file under `src/MosyleFreeKit/{Public,Private}`; the release build flattens
+to a single `.psm1`. Tests are Pester 5 with all HTTP mocked at a single seam
+(`Invoke-MosyleFreeHttp`) — the suite runs with no network and no Mosyle tenant.
+
+`smoke-live.ps1` *does* hit the network, and has no built-in device list: pass
+`-SerialNumber`, or list one serial per line in `tools/smoke-allowlist.txt` (gitignored).
+Only ever list devices you administer.
 
 ## License
 
